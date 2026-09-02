@@ -96,9 +96,22 @@ class DeployManager
             try {
                 $package->getDeployStrategy()->deploy();
             } catch (\ErrorException $e) {
-                if ($this->io->isDebug()) {
-                    $this->io->write($e->getMessage());
-                }
+                // Hard fail on a deploy error. Previously the exception was only written in
+                // debug mode and otherwise swallowed, so a failed package deploy (e.g. a
+                // partially populated setup/ directory) passed silently and left a broken
+                // installation. The application cannot run with missing mapped files, so
+                // abort the install and report the package and the exact failing path.
+                throw new \RuntimeException(
+                    sprintf(
+                        'Magento deploy failed for "%s": %s (%s:%d)',
+                        $package->getPackageName(),
+                        $e->getMessage(),
+                        $e->getFile(),
+                        $e->getLine()
+                    ),
+                    0,
+                    $e
+                );
             }
         }
     }
